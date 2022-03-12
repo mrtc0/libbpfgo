@@ -124,6 +124,42 @@ type BPFMap struct {
 	module *Module
 }
 
+type MapType int
+
+const (
+	Unspec MapType = iota
+	Hash
+	Array
+	ProgArray
+	PerfEventArray
+	PerCPUHash
+	PerCPUArray
+	StackTrace
+	CgroupArray
+	LRUHash
+	LRUPerCPUHash
+	LPMTrie
+	ArrayOfMaps
+	HashOfMaps
+	DevMap
+	SockMap
+	CPUMap
+	XSKMap
+	SockHash
+	CgroupStorage
+	ReusePortSockArray
+	PerCPUCgroupStorage
+	Queue
+	Stack
+	SKStorage
+	DevmapHash
+	StructOps
+	Ringbuf
+	InodeStorage
+	TaskStorage
+	BloomFilter
+)
+
 type BPFProg struct {
 	name       string
 	prog       *C.struct_bpf_program
@@ -322,6 +358,47 @@ func (m *Module) BPFLoadObject() error {
 		return fmt.Errorf("failed to load BPF object")
 	}
 
+	return nil
+}
+
+// BPFMapCreateOpts mirrors the C structure bpf_map_create_opts
+type BPFMapCreateOpts struct {
+	Size                  uint64
+	BtfFD                 uint32
+	BtfKeyTypeID          uint32
+	BtfValueTypeID        uint32
+	BtfVmlinuxValueTypeID uint32
+	InnerMapFD            uint32
+	MapFlags              uint32
+	MapExtra              uint32
+	NumaNode              uint32
+	MapIfIndex            uint32
+}
+
+func bpfMapCreateOptsToC(createOpts *BPFMapCreateOpts) *C.struct_bpf_map_create_opts {
+	if createOpts == nil {
+		return nil
+	}
+	opts := C.struct_bpf_map_create_opts{}
+	opts.sz = C.ulong(createOpts.Size)
+	opts.btf_fd = C.uint(createOpts.BtfFD)
+	opts.btf_key_type_id = C.uint(createOpts.BtfKeyTypeID)
+	opts.btf_value_type_id = C.uint(createOpts.BtfValueTypeID)
+	opts.btf_vmlinux_value_type_id = C.uint(createOpts.BtfVmlinuxValueTypeID)
+	opts.inner_map_fd = C.uint(createOpts.InnerMapFD)
+	opts.map_flags = C.uint(createOpts.MapFlags)
+	opts.map_extra = C.uint(createOpts.MapExtra)
+	opts.numa_node = C.uint(createOpts.NumaNode)
+	opts.map_ifindex = C.uint(createOpts.MapIfIndex)
+
+	return &createOpts
+}
+
+// CreateMap returns file descriptor of newly created map
+func (m *Module) CreateMap(mapType MapType,
+	keySize, valueSize, maxEntries int,
+	opts BPFMapCreateOpts) (int, error) {
+	C.bpf_map_create(mapType, C.uint(keySize), C.uint(valueSize), C.uint(maxEntries), bpfMapCreateOptsToC(&opts))
 	return nil
 }
 
